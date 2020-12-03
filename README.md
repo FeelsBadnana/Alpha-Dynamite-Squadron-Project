@@ -1,6 +1,6 @@
 # Alpha Dynamite Squadron Project
  For CS4990; Implementing Closeness Centrality with Parallel Dijstra's Algorithm
- [Team Logo](team_logo.jpg)
+ ![Team Logo](team_logo.jpg)
  
 ## Libraries Used 
  * Mpi4Py 3.4.3
