@@ -14,8 +14,8 @@
  
 ## Export Data
  * *output.txt*
-   * Graph [Graph Name]
-     top 5 nodes by cc: [List of values]
+   * Graph [Graph Name]  
+     top 5 nodes by cc: [List of values]  
      cc average value: [Int value]
   * *time.csv*
     *  [Graph Name], [Number of Nodes], [Elapsed Time to run CC]
