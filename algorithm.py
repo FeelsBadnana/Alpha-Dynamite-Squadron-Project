@@ -40,11 +40,9 @@ def sequentialClosenessCentrality(G):
 def parallelClosenessCentrality(G, comm):
 
     rank = comm.Get_rank()
-    # print(rank)
     P = comm.Get_size()
 
     if(rank == 0):
-        # print(rank)
         # Initialize dictionary to hold all node, closeness centrality pairs
         closeness_centrality = {}
 
