@@ -31,6 +31,6 @@
 ## Credit
  * Thanks to College of Charleston's HPC Website for showing clear instructions on how to run MPI commands on an HPC
    * [MPI Python Example](https://docs.hpc.cofc.edu/using-the-hpc/scheduling-jobs/execute-a-job/python)
-   * [MPI General Example](https://docs.hpc.cofc.edu/using-the-hpc/scheduling-jobs/execute-a-job/python)
+   * [MPI General Example](https://docs.hpc.cofc.edu/using-the-hpc/scheduling-jobs/execute-a-job)
 
  
