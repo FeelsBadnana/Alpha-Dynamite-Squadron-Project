@@ -1,8 +1,9 @@
 from mpi4py import MPI
 import networkx as nx
 from scipy.sparse import csr_matrix
-from scipy.sparse.csgraph import dijkstra
 import numpy as np
+from heapq import heappush, heappop
+from itertools import count
 
 # Input: NetworkX Graph (G)
 # Output: Dictionary of Closeness Centralities for all nodes in Graph G
@@ -13,23 +14,20 @@ def sequentialClosenessCentrality(G):
     if G.is_directed():
         G = G.reverse()  # create a reversed graph view
 
-    # Convert NetworkX Graph to Scipy Sparse Matrix for Dijkstra's Algorithm
-    sparseMatrix = nx.to_scipy_sparse_matrix(G)
-
     for n in G.nodes:
         # Dijkstra’s is used as APSP algorithm
-        shortest_paths = dijkstra(csgraph=sparseMatrix, directed=True, indices=n)
+        sp = dijkstra(G, [n])
         # Mask infinity so we don't sum them later on and sum
-        sp = np.ma.masked_invalid(shortest_paths)
-        totsp = sp.sum()
-        len_G = np.size(sp)
-        num_of_valid = np.size(sp) - np.ma.count_masked(sp)
+        # sp = np.ma.masked_invalid(shortest_paths)
+        totsp = sum(sp.values())
+        len_G = G.number_of_nodes()
+        len_sp = len(sp)
 
         _closeness_centrality = 0.0
         if totsp > 0.0 and len_G > 1:
-            _closeness_centrality = (num_of_valid - 1.0) / totsp
+            _closeness_centrality = (len_sp - 1.0) / totsp
             # normalize to number of nodes-1 in connected part
-            s = (num_of_valid - 1.0) / (len_G - 1)
+            s = (len_sp - 1.0) / (len_G - 1)
             _closeness_centrality *= s
         closeness_centrality[n] = _closeness_centrality
 
@@ -49,27 +47,21 @@ def parallelClosenessCentrality(G, comm):
         if G.is_directed():
             G = G.reverse()  # create a reversed graph view
 
-        # Convert NetworkX Graph to Scipy Sparse Matrix for Dijkstra's Algorithm
-        sparseMatrix = nx.to_scipy_sparse_matrix(G)
-    else:
-        sparseMatrix = None
+        # print("rank 0: {}".format(nx.number_of_edges(G)))
 
     # may throw error    
-    sparseMatrix = comm.bcast(sparseMatrix, root=0)
-    
-
-
+    G = comm.bcast(G, root=0)
 
     # Initialize closeness centrality partition
     cc_part = {}
 
     # Get number of nodes
-    N = sparseMatrix.shape[0]
+    N = G.number_of_nodes()
 
     count = N // P
     remainder = N % P
     start = 0
-    stop = 0
+    end = 0
 
     if rank < remainder:
         # The first 'remainder' ranks get 'count + 1' tasks each
@@ -79,24 +71,26 @@ def parallelClosenessCentrality(G, comm):
         # The remaining 'size - remainder' ranks get 'count' task each
         start = rank * count + remainder
         stop = start + (count - 1)
+    
+    rankNodes = list(G.nodes)[start: stop + 1]
 
-
-    for n in range(start, stop + 1):
+    for n in rankNodes:
         # Dijkstra’s is used as APSP algorithm
-        shortest_paths = dijkstra(csgraph=sparseMatrix, directed=True, indices=n)
+        sp = dijkstra(G, [str(n)])
         # Mask infinity so we don't sum them later on and sum
-        sp = np.ma.masked_invalid(shortest_paths)
-        totsp = sp.sum()
-        len_G = np.size(sp)
-        num_of_valid = np.size(sp) - np.ma.count_masked(sp)
+        # sp = np.ma.masked_invalid(shortest_paths)
+        totsp = sum(sp.values())
+        len_G = G.number_of_nodes()
+        len_sp = len(sp)
 
         _closeness_centrality = 0.0
         if totsp > 0.0 and len_G > 1:
-            _closeness_centrality = (num_of_valid - 1.0) / totsp
+            _closeness_centrality = (len_sp - 1.0) / totsp
             # normalize to number of nodes-1 in connected part
-            s = (num_of_valid - 1.0) / (len_G - 1)
+            s = (len_sp - 1.0) / (len_G - 1)
             _closeness_centrality *= s
         cc_part[n] = _closeness_centrality
+
 
 
     closeness_centrality_dict = comm.gather(cc_part, root=0)
@@ -108,3 +102,33 @@ def parallelClosenessCentrality(G, comm):
         return closeness_centrality
     else:
         return
+
+def dijkstra(G, sources): 
+    G_succ = G._succ if G.is_directed() else G._adj
+    # print("{}".format(G_succ))
+    push = heappush
+    pop = heappop
+    dist = {}  # dictionary of final distances
+    seen = {}
+    # frontier is heapq with 3-tuples (distance,c,node)
+    # use the count c to avoid comparing nodes (may not be able to)
+    c = count()
+    frontier = []
+    for source in sources:
+        seen[source] = 0
+        push(frontier, (0, next(c), source))
+    while frontier:
+        (d, _, v) = pop(frontier)
+        if v in dist:
+            continue  # already searched this node.
+        dist[v] = d
+
+        for u, e in G_succ[v].items():
+            path_cost = dist[v] + 1
+            if u not in seen or path_cost < seen[u]:
+                seen[u] = path_cost
+                push(frontier, (path_cost, next(c), u))
+              
+    # The optional predecessor and path dictionaries can be accessed
+    # by the caller via the pred and paths objects passed as arguments.
+    return dist

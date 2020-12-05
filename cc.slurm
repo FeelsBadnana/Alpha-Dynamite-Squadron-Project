@@ -8,4 +8,7 @@
 #SBATCH --ntasks-per-node=1 # Request n cores or task per node
 #SBATCH --mem-per-cpu=4000   # Request 4000MB (4GB) RAM per core
 ​
-mpirun python main.py sample_graph.txt
+mpirun -n 1 python main.py sample_graph.txt
+mpirun -n 4 python main.py sample_graph.txt
+mpirun -n 8 python main.py sample_graph.txt
+mpirun -n 16 python main.py sample_graph.txt

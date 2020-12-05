@@ -3,11 +3,14 @@ from mpi4py import MPI
 import networkx as nx
 import sys
 import time
+from datetime import datetime
 
 # Arguments: File Name of Graph Data (txt)
 def main():
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+
+    P = comm.Get_size()
 
     graph = None
 
@@ -29,36 +32,40 @@ def main():
     cc, elapsed_time = runCC(graph, comm)
 
     if(rank == 0):
+        dateTimeObj = datetime.now()
+        timestamp = "{}/{}/{} {}:{}:{}".format(dateTimeObj.month, dateTimeObj.day, dateTimeObj.year, dateTimeObj.hour, dateTimeObj.minute, dateTimeObj.second)
+
+        graph_name_txt = graph_name[:-4]
+
         # Export Data after finishing program for node 0 only
-        exportCCData(cc, graph_name)
-        exportTime(elapsed_time, graph_name, comm.Get_size())
+        exportCCData(cc, graph_name_txt, P, timestamp)
+        exportTime(elapsed_time, graph_name_txt, P, timestamp)
     
 def runCC(graph, comm):
-
     cc = {}
     elapsed_time = -1
 
     rank = comm.Get_rank()
-    num_of_nodes = comm.Get_size()
+    P = comm.Get_size()
 
     # node 0 should start time
     if(rank == 0):
         start = time.time()
 
     # Run parallel algorithm if nodes > 1
-    if num_of_nodes > 1:
+    if P > 1:
         if(rank == 0):
             cc = algorithm.parallelClosenessCentrality(graph, comm)
         else:
             algorithm.parallelClosenessCentrality(None, comm)
 
     # Run sequential algorithm if nodes = 1
-    elif num_of_nodes == 1:
+    elif P == 1:
         cc = algorithm.sequentialClosenessCentrality(graph)
 
     # Raise error if nodes < 1
     else:
-        raise SystemExit('Nodes cannot be less than one. You entered {}'.format(nodes))
+        raise SystemExit('Nodes cannot be less than one. You entered {}'.format(P))
 
     # Calculate elapsed time of CC
     if(rank == 0):
@@ -67,20 +74,21 @@ def runCC(graph, comm):
 
     return cc, elapsed_time
 
-def exportCCData(cc, graph_name):
+def exportCCData(cc, graph_name, P, timestamp):
     # Find top five cc values and average
     cc_ordered = sorted(cc.items(), key=lambda x: x[1], reverse=True)
     cc_top_five = cc_ordered[0:5]
     cc_avg = sum(cc.values()) / len(cc)
 
     # Export following Closeness Centrality data to txt file
-    with open("output.txt", "a") as f:
+    with open("output_{}_{}.txt".format(graph_name, P), "a") as f:
+        f.write("timestamp: {}\n".format(timestamp))
         f.write("Graph {}:\n".format(graph_name))
         f.write("top 5 nodes by cc: {}\n".format(cc_top_five))
         f.write("cc average value: {}\n\n\n".format(cc_avg))
 
-def exportTime(elapsed_time, graph_name, num_of_nodes):
-    output = "{}, {}, {}\n".format(graph_name, num_of_nodes, elapsed_time)
+def exportTime(elapsed_time, graph_name, P, timestamp):
+    output = "{}, {}, {}, {}\n".format(timestamp, graph_name, P, elapsed_time)
 
     # Export elapsed time to csv file
     with open("time.csv", "a") as f:
