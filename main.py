@@ -75,17 +75,22 @@ def runCC(graph, comm):
     return cc, elapsed_time
 
 def exportCCData(cc, graph_name, P, timestamp):
+    cc_iterator = cc.items()
+    cc_ordered_k = sorted(cc_iterator, key=lambda x: int(x[0]), reverse=False)
+    
     # Find top five cc values and average
-    cc_ordered = sorted(cc.items(), key=lambda x: x[1], reverse=True)
-    cc_top_five = cc_ordered[0:5]
+    cc_ordered_v = sorted(cc_iterator, key=lambda x: x[1], reverse=True)
+    cc_top_five = cc_ordered_v[0:5]
     cc_avg = sum(cc.values()) / len(cc)
 
     # Export following Closeness Centrality data to txt file
     with open("output_{}_{}.txt".format(graph_name, P), "a") as f:
-        f.write("timestamp: {}\n".format(timestamp))
+        f.write("timestamp: {}\n\n".format(timestamp))
         f.write("Graph {}:\n".format(graph_name))
-        f.write("top 5 nodes by cc: {}\n".format(cc_top_five))
-        f.write("cc average value: {}\n\n\n".format(cc_avg))
+        for v, cc_value in cc_ordered_k:
+            f.write("{}: {}\n".format(v, cc_value))
+        f.write("\ntop 5 nodes by cc: {}\n".format(cc_top_five))
+        f.write("cc average value: {}\n\n\n\n\n".format(cc_avg))
 
 def exportTime(elapsed_time, graph_name, P, timestamp):
     output = "{}, {}, {}, {}\n".format(timestamp, graph_name, P, elapsed_time)
