@@ -16,7 +16,7 @@ def sequentialClosenessCentrality(G):
 
     for n in G.nodes:
         # Dijkstra’s is used as APSP algorithm
-        sp = dijkstra(G, [n])
+        sp = dijkstra(G, n)
         # Mask infinity so we don't sum them later on and sum
         # sp = np.ma.masked_invalid(shortest_paths)
         totsp = sum(sp.values())
@@ -47,8 +47,6 @@ def parallelClosenessCentrality(G, comm):
         if G.is_directed():
             G = G.reverse()  # create a reversed graph view
 
-        # print("rank 0: {}".format(nx.number_of_edges(G)))
-
     # may throw error    
     G = comm.bcast(G, root=0)
 
@@ -76,7 +74,7 @@ def parallelClosenessCentrality(G, comm):
 
     for n in rankNodes:
         # Dijkstra’s is used as APSP algorithm
-        sp = dijkstra(G, [str(n)])
+        sp = dijkstra(G, str(n))
         # Mask infinity so we don't sum them later on and sum
         # sp = np.ma.masked_invalid(shortest_paths)
         totsp = sum(sp.values())
@@ -103,31 +101,30 @@ def parallelClosenessCentrality(G, comm):
     else:
         return
 
-def dijkstra(G, sources): 
+# Input: NetworkX Graph (G), Source Nodes of Dijkstra (source)
+# Output: Dictionary of distances between source nodes and all nodes in Graph G
+def dijkstra(G, source): 
     G_succ = G._succ if G.is_directed() else G._adj
-    # print("{}".format(G_succ))
     push = heappush
     pop = heappop
     dist = {}  # dictionary of final distances
-    seen = {}
+    seen = {} # dictionary of seen vertices
     # frontier is heapq with 3-tuples (distance,c,node)
     # use the count c to avoid comparing nodes (may not be able to)
-    c = count()
     frontier = []
-    for source in sources:
-        seen[source] = 0
-        push(frontier, (0, next(c), source))
+    seen[source] = 0
+    push(frontier, (0, source))
     while frontier:
-        (d, _, v) = pop(frontier)
+        (d, v) = pop(frontier)
         if v in dist:
             continue  # already searched this node.
         dist[v] = d
 
-        for u, e in G_succ[v].items():
+        for neighbor, _ in G_succ[v].items():
             path_cost = dist[v] + 1
-            if u not in seen or path_cost < seen[u]:
-                seen[u] = path_cost
-                push(frontier, (path_cost, next(c), u))
+            if neighbor not in seen or path_cost < seen[neighbor]:
+                seen[neighbor] = path_cost
+                push(frontier, (path_cost, neighbor))
               
     # The optional predecessor and path dictionaries can be accessed
     # by the caller via the pred and paths objects passed as arguments.
